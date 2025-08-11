@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roy's Dynamic Links</title>
+    <!-- Use Tailwind CSS for a modern, responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- New handwritten style font for a personalized touch -->
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212; /* Very dark background */
+        }
+        #user-name, #user-bio, .bento-item h2, .bento-item-link-text {
+            font-family: 'Dancing Script', cursive;
+        }
+        .bento-item {
+            background-color: #1f1f1f;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden;
+            position: relative;
+        }
+        .bento-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        .bento-item-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-top-left-radius: 1.5rem;
+            border-top-right-radius: 1.5rem;
+        }
+        .bento-item-category-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            filter: brightness(0.6);
+        }
+        .bento-item-category-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4); /* Overlay for readability */
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-100">
+
+    <div class="w-full max-w-4xl mx-auto p-4 md:p-8">
+
+        <!-- Profile section at the top -->
+        <div class="text-center mb-10">
+            <img id="profile-pic" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-gray-600 shadow-xl" src="https://placehold.co/128x128/333333/a0aec0?text=Roy" alt="Profile Picture" onerror="this.onerror=null;this.src='https://placehold.co/128x128/333333/a0aec0?text=Fallback';" />
+            <h1 id="user-name" class="text-4xl md:text-5xl font-extrabold text-white mb-2"></h1>
+            <p id="user-bio" class="text-lg md:text-xl text-gray-400"></p>
+        </div>
+
+        <!-- Admin Controls -->
+        <div id="admin-controls" class="mb-4 text-center">
+            <button id="admin-mode-toggle" class="bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-600 transition-colors">
+                Enable Admin Mode
+            </button>
+            <p id="user-id-display" class="text-gray-500 text-sm mt-2 hidden"></p>
+        </div>
+
+        <!-- Links container will hold all dynamic content -->
+        <div id="links-container">
+            <!-- Content will be rendered dynamically by JavaScript -->
+        </div>
+
+    </div>
+
+    <!-- The Modal for adding/editing items -->
+    <div id="edit-modal" class="modal">
+        <div class="bg-gray-800 p-6 rounded-3xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2">
+            <h3 id="modal-title" class="text-2xl font-bold mb-4"></h3>
+            <form id="edit-form" class="space-y-4">
+                <div class="flex flex-col">
+                    <label for="link-name" class="text-gray-400">Name</label>
+                    <input type="text" id="link-name" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="link-url" class="text-gray-400">URL</label>
+                    <input type="url" id="link-url" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="link-emoji" class="text-gray-400">Emoji</label>
+                    <input type="text" id="link-emoji" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="link-image" class="text-gray-400">Image URL (Optional)</label>
+                    <input type="url" id="link-image" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="link-description" class="text-gray-400">Description (Context)</label>
+                    <textarea id="link-description" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24"></textarea>
+                </div>
+                <div class="flex flex-col">
+                    <label for="link-size" class="text-gray-400">Size</label>
+                    <select id="link-size" class="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="normal">Normal</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="close-modal" class="bg-gray-600 text-white px-4 py-2 rounded-full hover:bg-gray-500 transition-colors">Cancel</button>
+                    <button type="submit" id="save-item" class="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-500 transition-colors">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- The Modal for viewing item details -->
+    <div id="detail-modal" class="modal">
+        <div class="bg-gray-800 p-6 rounded-3xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2">
+            <h3 id="detail-title" class="text-2xl font-bold mb-4"></h3>
+            <p id="detail-description" class="text-gray-300 mb-4 whitespace-pre-wrap"></p>
+            <a id="detail-url" href="#" target="_blank" rel="noopener noreferrer" class="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-500 transition-colors block text-center mb-4">Visit Link</a>
+            <div class="flex justify-end">
+                <button id="close-detail-modal" class="bg-gray-600 text-white px-4 py-2 rounded-full hover:bg-gray-500 transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, updateDoc, deleteDoc, addDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES (PROVIDED BY CANVAS ENVIRONMENT) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- FIREBASE INITIALIZATION AND AUTHENTICATION ---
+        let app, db, auth, userId;
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // Display the user ID for multi-user collaboration
+                        const userIdDisplay = document.getElementById('user-id-display');
+                        userIdDisplay.textContent = `User ID: ${userId}`;
+                        userIdDisplay.classList.remove('hidden');
+                        console.log("Firebase initialized and user signed in:", userId);
+                        setupRealtimeListener();
+                    } else {
+                        console.log("No user signed in.");
+                    }
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+            }
+        }
+
+        // --- APPLICATION LOGIC ---
+        const linksContainer = document.getElementById('links-container');
+        const userNameElement = document.getElementById('user-name');
+        const userBioElement = document.getElementById('user-bio');
+        const editModal = document.getElementById('edit-modal');
+        const detailModal = document.getElementById('detail-modal');
+        const editForm = document.getElementById('edit-form');
+        const adminModeToggle = document.getElementById('admin-mode-toggle');
+        
+        let isEditingCategory = false;
+        let activeCategoryId = null;
+        let isEditMode = false;
+        let editingItemId = null;
+        let isLinksView = false;
+        let adminMode = false;
+        let allCategories = [];
+
+        // Function to create a typing effect for the bio
+        function typeBio(text, element) {
+            let i = 0;
+            element.textContent = '';
+            function typing() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(typing, 25); // Adjust typing speed here
+                }
+            }
+            typing();
+        }
+
+        // Renders the profile information on the page
+        function renderProfile() {
+            document.getElementById('profile-pic').src = "https://placehold.co/128x128/333333/a0aec0?text=Roy";
+            userNameElement.textContent = "Roy Hodge Jr.";
+            typeBio("My links to the services I use and recommend. Check them out! ✨", userBioElement);
+        }
+
+        // Renders the main category menu
+        function renderCategories(categories) {
+            linksContainer.innerHTML = '';
+            isLinksView = false;
+            
+            if (adminMode) {
+                const addCategoryBtn = document.createElement('button');
+                addCategoryBtn.className = "bento-item flex items-center justify-center w-full py-4 rounded-3xl cursor-pointer shadow-lg mb-4 bg-blue-600 hover:bg-blue-500 transition-colors";
+                addCategoryBtn.innerHTML = `<span class="text-lg font-semibold">Add New Category</span>`;
+                addCategoryBtn.addEventListener('click', () => showAddCategoryModal());
+                linksContainer.appendChild(addCategoryBtn);
+            }
+
+            const categoryGrid = document.createElement('div');
+            categoryGrid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+            
+            categories.forEach(category => {
+                const categoryButton = document.createElement('div');
+                categoryButton.className = "bento-item flex flex-col justify-center p-6 rounded-3xl cursor-pointer shadow-lg relative";
+
+                let adminControlsHtml = '';
+                if (adminMode) {
+                    adminControlsHtml = `
+                        <div class="flex space-x-2 absolute top-2 right-2 z-10">
+                            <button class="text-blue-400 hover:text-blue-300" onclick="event.stopPropagation(); showEditCategoryModal('${category.id}', '${category.title}', '${category.emoji}', '${category.image || ''}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-5.121 5.121l-1.414 1.414L10 14.414l-4 4-2.414-2.414L8.586 9.879zM5.414 10.586L4 12l2 2l1.414-1.414-2-2z"/>
+                                </svg>
+                            </button>
+                            <button class="text-red-400 hover:text-red-300" onclick="event.stopPropagation(); deleteCategory('${category.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                const categoryImageHtml = category.image ? `<img src="${category.image}" alt="${category.title}" class="bento-item-category-image">` : '';
+
+                categoryButton.innerHTML = `
+                    ${categoryImageHtml}
+                    <div class="bento-item-category-content">
+                        ${adminControlsHtml}
+                        <div class="flex items-center">
+                            <span class="text-3xl mr-2">${category.emoji}</span>
+                            <span class="text-lg md:text-xl font-semibold bento-item-link-text">${category.title}</span>
+                        </div>
+                    </div>
+                `;
+                categoryButton.addEventListener('click', () => {
+                    if (category.links && category.links.length > 0 || adminMode) {
+                        renderLinks(category);
+                    } else {
+                        console.log("This category has no links.");
+                    }
+                });
+                categoryGrid.appendChild(categoryButton);
+            });
+
+            linksContainer.appendChild(categoryGrid);
+        }
+
+        // Renders the links for a specific category
+        function renderLinks(category) {
+            linksContainer.innerHTML = '';
+            isLinksView = true;
+            activeCategoryId = category.id;
+
+            // Create a back button
+            const backButton = document.createElement('button');
+            backButton.className = "bento-item flex items-center justify-center w-full py-4 rounded-3xl cursor-pointer shadow-lg mb-8";
+            backButton.innerHTML = `<span class="text-lg font-semibold">← Back to Categories</span>`;
+            backButton.addEventListener('click', () => renderCategories(allCategories));
+            linksContainer.appendChild(backButton);
+
+            if (adminMode) {
+                const addLinkBtn = document.createElement('button');
+                addLinkBtn.className = "bento-item flex items-center justify-center w-full py-4 rounded-3xl cursor-pointer shadow-lg mb-4 bg-blue-600 hover:bg-blue-500 transition-colors";
+                addLinkBtn.innerHTML = `<span class="text-lg font-semibold">Add New Link to ${category.title}</span>`;
+                addLinkBtn.addEventListener('click', () => showAddLinkModal(category.id));
+                linksContainer.appendChild(addLinkBtn);
+            }
+
+            // Create a grid for the links
+            const linksGrid = document.createElement('div');
+            linksGrid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+            
+            // Add a title for the category
+            const categoryTitle = document.createElement('h2');
+            categoryTitle.textContent = category.title;
+            categoryTitle.className = "text-3xl md:text-4xl font-extrabold text-white col-span-full text-center mb-4";
+            linksGrid.appendChild(categoryTitle);
+
+            // Sort links alphabetically by name
+            const sortedLinks = category.links.sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedLinks.forEach(link => {
+                const linkButton = document.createElement('div');
+                let linkClasses = "bento-item flex flex-col justify-center rounded-3xl cursor-pointer shadow-lg relative";
+                if (link.size === 'large') {
+                    linkClasses += " md:col-span-2";
+                }
+                
+                let adminControlsHtml = '';
+                if (adminMode) {
+                    adminControlsHtml = `
+                        <div class="flex space-x-2 absolute top-2 right-2 z-10">
+                            <button class="text-blue-400 hover:text-blue-300" onclick="event.stopPropagation(); showEditLinkModal('${category.id}', '${link.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-5.121 5.121l-1.414 1.414L10 14.414l-4 4-2.414-2.414L8.586 9.879zM5.414 10.586L4 12l2 2l1.414-1.414-2-2z"/>
+                                </svg>
+                            </button>
+                            <button class="text-red-400 hover:text-red-300" onclick="event.stopPropagation(); deleteLink('${category.id}', '${link.id}')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                const imageHtml = link.image ? `<img src="${link.image}" alt="${link.name}" class="bento-item-image">` : '';
+
+                linkButton.className = linkClasses;
+                linkButton.innerHTML = `
+                    ${imageHtml}
+                    <div class="p-6">
+                        ${adminControlsHtml}
+                        <div class="flex items-center">
+                            <span class="text-3xl mr-2">${link.emoji}</span>
+                            <span class="text-lg md:text-xl font-semibold bento-item-link-text">${link.name}</span>
+                        </div>
+                    </div>
+                `;
+                linkButton.addEventListener('click', () => {
+                    showDetailModal(link);
+                });
+                
+                linksGrid.appendChild(linkButton);
+            });
+            linksContainer.appendChild(linksGrid);
+        }
+
+        // --- MODAL AND FORM LOGIC ---
+
+        function showDetailModal(link) {
+            document.getElementById('detail-title').textContent = link.name;
+            document.getElementById('detail-description').textContent = link.description || "No description provided.";
+            document.getElementById('detail-url').href = link.url;
+            detailModal.style.display = 'flex';
+        }
+
+        function showAddCategoryModal() {
+            isEditingCategory = true;
+            isEditMode = false;
+            document.getElementById('modal-title').textContent = "Add New Category";
+            document.getElementById('link-name').value = '';
+            document.getElementById('link-url').value = '';
+            document.getElementById('link-emoji').value = '';
+            document.getElementById('link-image').value = '';
+            document.getElementById('link-description').value = '';
+            document.getElementById('link-size').value = 'normal';
+            // Hide irrelevant fields
+            document.getElementById('link-url').parentElement.classList.add('hidden');
+            document.getElementById('link-description').parentElement.classList.add('hidden');
+            document.getElementById('link-size').parentElement.classList.add('hidden');
+            // Show image and emoji fields
+            document.getElementById('link-image').parentElement.classList.remove('hidden');
+            document.getElementById('link-emoji').parentElement.classList.remove('hidden');
+            editModal.style.display = 'flex';
+        }
+
+        function showEditCategoryModal(categoryId, title, emoji, image) {
+            isEditingCategory = true;
+            isEditMode = true;
+            editingItemId = categoryId;
+            document.getElementById('modal-title').textContent = `Edit Category: ${title}`;
+            document.getElementById('link-name').value = title;
+            document.getElementById('link-emoji').value = emoji;
+            document.getElementById('link-image').value = image || '';
+            // Hide irrelevant fields
+            document.getElementById('link-url').parentElement.classList.add('hidden');
+            document.getElementById('link-description').parentElement.classList.add('hidden');
+            document.getElementById('link-size').parentElement.classList.add('hidden');
+            // Show image and emoji fields
+            document.getElementById('link-image').parentElement.classList.remove('hidden');
+            document.getElementById('link-emoji').parentElement.classList.remove('hidden');
+            editModal.style.display = 'flex';
+        }
+        
+        function showAddLinkModal(categoryId) {
+            isEditingCategory = false;
+            isEditMode = false;
+            activeCategoryId = categoryId;
+            document.getElementById('modal-title').textContent = `Add New Link`;
+            document.getElementById('link-name').value = '';
+            document.getElementById('link-url').value = '';
+            document.getElementById('link-emoji').value = '';
+            document.getElementById('link-image').value = '';
+            document.getElementById('link-description').value = '';
+            document.getElementById('link-size').value = 'normal';
+            // Show all fields for a link
+            document.getElementById('link-url').parentElement.classList.remove('hidden');
+            document.getElementById('link-emoji').parentElement.classList.remove('hidden');
+            document.getElementById('link-image').parentElement.classList.remove('hidden');
+            document.getElementById('link-description').parentElement.classList.remove('hidden');
+            document.getElementById('link-size').parentElement.classList.remove('hidden');
+            editModal.style.display = 'flex';
+        }
+
+        function showEditLinkModal(categoryId, linkId) {
+            isEditingCategory = false;
+            isEditMode = true;
+            activeCategoryId = categoryId;
+            editingItemId = linkId;
+            document.getElementById('modal-title').textContent = `Edit Link`;
+            // Find the link to pre-fill the form
+            const category = allCategories.find(c => c.id === categoryId);
+            const link = category.links.find(l => l.id === linkId);
+            if (link) {
+                document.getElementById('link-name').value = link.name;
+                document.getElementById('link-url').value = link.url;
+                document.getElementById('link-emoji').value = link.emoji;
+                document.getElementById('link-image').value = link.image || '';
+                document.getElementById('link-description').value = link.description;
+                document.getElementById('link-size').value = link.size;
+            }
+            // Show all fields for a link
+            document.getElementById('link-url').parentElement.classList.remove('hidden');
+            document.getElementById('link-emoji').parentElement.classList.remove('hidden');
+            document.getElementById('link-image').parentElement.classList.remove('hidden');
+            document.getElementById('link-description').parentElement.classList.remove('hidden');
+            document.getElementById('link-size').parentElement.classList.remove('hidden');
+            editModal.style.display = 'flex';
+        }
+
+        document.getElementById('close-modal').addEventListener('click', () => {
+            editModal.style.display = 'none';
+        });
+
+        document.getElementById('close-detail-modal').addEventListener('click', () => {
+            detailModal.style.display = 'none';
+        });
+
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('link-name').value;
+            const emoji = document.getElementById('link-emoji').value;
+            const url = document.getElementById('link-url').value;
+            const image = document.getElementById('link-image').value;
+            const description = document.getElementById('link-description').value;
+            const size = document.getElementById('link-size').value;
+
+            try {
+                if (isEditingCategory) {
+                    const categoryData = { title: name, emoji: emoji, image: image };
+                    if (isEditMode) {
+                        // Update existing category
+                        await updateCategory(editingItemId, categoryData);
+                    } else {
+                        // Add new category
+                        await addCategory({ ...categoryData, links: [] });
+                    }
+                } else {
+                    if (isEditMode) {
+                        // Update existing link
+                        await updateLink(activeCategoryId, editingItemId, { name, url, emoji, image, description, size });
+                    } else {
+                        // Add new link
+                        await addLink(activeCategoryId, { name, url, emoji, image, description, size, id: crypto.randomUUID() });
+                    }
+                }
+                editModal.style.display = 'none';
+            } catch (error) {
+                console.error("Error saving data:", error);
+            }
+        });
+
+        // --- FIRESTORE CRUD FUNCTIONS ---
+
+        async function addCategory(category) {
+            const categoriesRef = collection(db, `/artifacts/${appId}/users/${userId}/categories`);
+            await addDoc(categoriesRef, category);
+        }
+        
+        async function updateCategory(categoryId, data) {
+            const categoryRef = doc(db, `/artifacts/${appId}/users/${userId}/categories`, categoryId);
+            await updateDoc(categoryRef, data);
+        }
+
+        async function deleteCategory(categoryId) {
+            // Using a custom modal instead of alert() or confirm()
+            const confirmDelete = window.confirm("Are you sure you want to delete this category?");
+            if (confirmDelete) {
+                const categoryRef = doc(db, `/artifacts/${appId}/users/${userId}/categories`, categoryId);
+                await deleteDoc(categoryRef);
+            }
+        }
+
+        async function addLink(categoryId, link) {
+            const categoryRef = doc(db, `/artifacts/${appId}/users/${userId}/categories`, categoryId);
+            await updateDoc(categoryRef, {
+                links: arrayUnion(link)
+            });
+        }
+        
+        async function updateLink(categoryId, linkId, updatedData) {
+            const categoryRef = doc(db, `/artifacts/${appId}/users/${userId}/categories`, categoryId);
+            const category = allCategories.find(c => c.id === categoryId);
+            const oldLink = category.links.find(l => l.id === linkId);
+            
+            if (oldLink) {
+                await updateDoc(categoryRef, {
+                    links: arrayRemove(oldLink)
+                });
+                await updateDoc(categoryRef, {
+                    links: arrayUnion({ ...oldLink, ...updatedData })
+                });
+            }
+        }
+
+        async function deleteLink(categoryId, linkId) {
+            // Using a custom modal instead of alert() or confirm()
+            const confirmDelete = window.confirm("Are you sure you want to delete this link?");
+            if (confirmDelete) {
+                const categoryRef = doc(db, `/artifacts/${appId}/users/${userId}/categories`, categoryId);
+                const category = allCategories.find(c => c.id === categoryId);
+                const link = category.links.find(l => l.id === linkId);
+
+                if (link) {
+                    await updateDoc(categoryRef, {
+                        links: arrayRemove(link)
+                    });
+                }
+            }
+        }
+
+        // --- REALTIME LISTENER ---
+        function setupRealtimeListener() {
+            const categoriesRef = collection(db, `/artifacts/${appId}/users/${userId}/categories`);
+            onSnapshot(categoriesRef, (snapshot) => {
+                const categories = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    categories.push({ id: doc.id, ...data });
+                });
+                allCategories = categories;
+                if (isLinksView) {
+                    const activeCategory = allCategories.find(c => c.id === activeCategoryId);
+                    if (activeCategory) {
+                        renderLinks(activeCategory);
+                    } else {
+                        renderCategories(allCategories);
+                    }
+                } else {
+                    renderCategories(allCategories);
+                }
+            });
+        }
+        
+        // --- ADMIN MODE TOGGLE ---
+        adminModeToggle.addEventListener('click', () => {
+            adminMode = !adminMode;
+            adminModeToggle.textContent = adminMode ? 'Disable Admin Mode' : 'Enable Admin Mode';
+            adminModeToggle.classList.toggle('bg-blue-600', adminMode);
+            adminModeToggle.classList.toggle('hover:bg-blue-500', adminMode);
+            adminModeToggle.classList.toggle('bg-gray-700', !adminMode);
+            adminModeToggle.classList.toggle('hover:bg-gray-600', !adminMode);
+            
+            if (isLinksView) {
+                const activeCategory = allCategories.find(c => c.id === activeCategoryId);
+                if (activeCategory) renderLinks(activeCategory);
+                else renderCategories(allCategories);
+            } else {
+                renderCategories(allCategories);
+            }
+        });
+
+        // Initial render and setup
+        window.onload = function() {
+            renderProfile();
+            initializeFirebase();
+        };
+
+        // Expose functions to the global scope for onclick attributes
+        window.showEditCategoryModal = showEditCategoryModal;
+        window.deleteCategory = deleteCategory;
+        window.showEditLinkModal = showEditLinkModal;
+        window.deleteLink = deleteLink;
+        window.confirm = (message) => { // Custom confirm implementation
+            return window.prompt(message + " (Type 'yes' to confirm)") === 'yes';
+        };
+
+    </script>
+</body>
+</html>
